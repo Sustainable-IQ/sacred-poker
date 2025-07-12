@@ -1040,16 +1040,16 @@ export default function SustainableIQPoker() {
 
       {/* Player Hand */}
       <div className="mt-2">
-        <div className="flex gap-1 justify-center">
-          {player.hand.map((card, cardIndex) => (
-            <div key={cardIndex} className="transform scale-75">
-              <CardComponent
-                card={card}
-                hidden={player.name !== playerName && !showCards}
-              />
-            </div>
-          ))}
-        </div>
+      <div className="flex gap-1 justify-center">
+        {player.hand.map((card, cardIndex) => (
+          <div key={cardIndex} className="transform scale-75">
+            <CardComponent
+              card={card}
+              hidden={player.name !== playerName && !showCards}
+            />
+          </div>
+        ))}
+      </div>
       </div>
     </div>
   );
