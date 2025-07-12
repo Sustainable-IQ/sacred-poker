@@ -784,7 +784,7 @@ export default function SustainableIQPoker() {
             tiedPlayers.forEach(p => p.chips += splitAmount);
             
             newGame.pot = 0;
-            newGame.winner = null; // No single winner
+            newGame.winner = undefined; // No single winner
             addToLog(`Split pot! ${tiedPlayers.map(p => p.name).join(' & ')} each win ${splitAmount} with ${winner.hand.name}`);
             
             // Show all hands for transparency
