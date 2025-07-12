@@ -1040,16 +1040,16 @@ export default function SustainableIQPoker() {
 
       {/* Player Hand */}
       <div className="mt-2">
-      <div className="flex gap-1 justify-center">
-        {player.hand.map((card, cardIndex) => (
-          <div key={cardIndex} className="transform scale-75">
-            <CardComponent
-              card={card}
-              hidden={player.name !== playerName && !showCards}
-            />
-          </div>
-        ))}
-      </div>
+        <div className="flex gap-1 justify-center">
+          {player.hand.map((card, cardIndex) => (
+            <div key={cardIndex} className="transform scale-75">
+              <CardComponent
+                card={card}
+                hidden={player.name !== playerName && !showCards}
+              />
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -1270,7 +1270,7 @@ export default function SustainableIQPoker() {
         {!game && (
           <div className="text-center mb-6">
             <div className="bg-white rounded-xl p-6 mb-6 shadow-lg">
-              <h2 className="text-xl font-semibold mb-4 text-black">Ready to Play, {currentPlayer}!</h2>
+              <h2 className="text-xl font-semibold mb-4 text-black">Ready to Play, {playerName}!</h2>
               <div className="space-y-3">
                 <button
                   onClick={() => startNewGame('standard')}
