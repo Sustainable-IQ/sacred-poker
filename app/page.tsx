@@ -642,10 +642,10 @@ export default function SustainableIQPoker() {
     // PREMIUM HANDS (85+): Almost always play
     if (handStrength >= 85) {
       if (Math.random() < (0.85 * aggressionFactor)) {
-        const raiseAmount = Math.min(
+        const raiseAmount = Math.floor(Math.min(
           gameState.currentBet + Math.max(gameState.bigBlind * 2, currentPot * 0.3),
           player.chips + player.bet
-        );
+        ));
         return { action: 'raise', amount: raiseAmount };
       }
       return { action: 'call' };
@@ -655,7 +655,10 @@ export default function SustainableIQPoker() {
     if (handStrength >= 70) {
       if (betSize < 0.1 || Math.random() < (0.8 * aggressionFactor)) {
         if (Math.random() < (0.3 * aggressionFactor)) {
-          const raiseAmount = Math.min(gameState.currentBet + gameState.bigBlind * 2, player.chips + player.bet);
+          const raiseAmount = Math.floor(Math.min(
+            gameState.currentBet + gameState.bigBlind * 2, 
+            player.chips + player.bet
+          ));
           return { action: 'raise', amount: raiseAmount };
         }
         return { action: 'call' };
@@ -713,7 +716,7 @@ export default function SustainableIQPoker() {
         
       case 'raise':
         if (decision.amount && decision.amount > gameState.currentBet) {
-          const totalBet = Math.min(decision.amount, activePlayer.chips + activePlayer.bet);
+          const totalBet = Math.floor(Math.min(decision.amount, activePlayer.chips + activePlayer.bet));
           const additionalBet = totalBet - activePlayer.bet;
           newGame.players[playerIndex].chips -= additionalBet;
           newGame.players[playerIndex].bet = totalBet;
