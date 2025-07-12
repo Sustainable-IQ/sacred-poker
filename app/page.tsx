@@ -406,12 +406,20 @@ function getNextActivePlayer(game: GameState): number {
 export default function SustainableIQPoker() {
   const [socket] = useState(() => new MockWebSocket());
   const [game, setGame] = useState<GameState | null>(null);
-  const [currentPlayer, setCurrentPlayer] = useState<string>('');
+  const [playerName, setPlayerName] = useState<string>(''); // Store custom player name
+  const [nameConfirmed, setNameConfirmed] = useState<boolean>(false); // NEW: Track if name is confirmed
   const [gameLog, setGameLog] = useState<string[]>([]);
   const [actionAmount, setActionAmount] = useState<number>(0);
   const [showCards, setShowCards] = useState<boolean>(false);
 
-  const playerNames = ['Dealer', 'Small Blind', 'Big Blind', 'UTG', 'Middle Position', 'Cutoff'];
+  // Generate player names with user's custom name in random position
+  const generatePlayerNames = (customName: string): string[] => {
+    const genericNames = ['Player 1', 'Player 2', 'Player 3', 'Player 4', 'Player 5'];
+    const userPosition = Math.floor(Math.random() * 6); // Random position 0-5
+    const allNames = [...genericNames];
+    allNames.splice(userPosition, 0, customName); // Insert user name at random position
+    return allNames;
+  };
 
   const addToLog = useCallback((message: string) => {
     const timestamp = new Date().toLocaleTimeString();
@@ -420,10 +428,14 @@ export default function SustainableIQPoker() {
   }, []);
 
   const startNewGame = (mode: string = 'standard') => {
+    if (!playerName.trim()) return; // Don't start without a player name
+    
+    const playerNames = generatePlayerNames(playerName);
     const newGame = initializeGame(playerNames, mode);
     const gameWithCards = dealCards(newGame);
     setGame(gameWithCards);
     addToLog(`Tournament started - Hand #${newGame.handNumber}`);
+    addToLog(`Players: ${playerNames.join(', ')}`);
     addToLog(`Dealer: ${gameWithCards.players[newGame.dealerIndex].name}`);
     
     // Find and log blind positions
@@ -438,11 +450,11 @@ export default function SustainableIQPoker() {
   };
 
   const handlePlayerAction = (action: string, amount?: number) => {
-    if (!game || !currentPlayer) return;
+    if (!game || !playerName) return;
 
-    const playerIndex = game.players.findIndex(p => p.name === currentPlayer);
+    const playerIndex = game.players.findIndex(p => p.name === playerName);
     if (playerIndex !== game.activePlayerIndex) {
-      addToLog(`It's not ${currentPlayer}'s turn!`);
+      addToLog(`It's not ${playerName}'s turn!`);
       return;
     }
 
@@ -779,7 +791,7 @@ export default function SustainableIQPoker() {
       return;
     }
     
-    const isHumanPlayer = activePlayer.name === currentPlayer;
+    const isHumanPlayer = activePlayer.name === playerName;
     
     // Only act if it's an AI player's turn AND they haven't acted yet
     if (!isHumanPlayer && !activePlayer.folded && !activePlayer.allIn && !activePlayer.eliminated && !activePlayer.hasActed) {
@@ -792,7 +804,7 @@ export default function SustainableIQPoker() {
           
           // Double-check the current active player state
           const currentActivePlayer = prevGame.players[prevGame.activePlayerIndex];
-          if (currentActivePlayer.hasActed || currentActivePlayer.folded || currentActivePlayer.allIn || currentActivePlayer.eliminated || currentActivePlayer.name === currentPlayer) {
+          if (currentActivePlayer.hasActed || currentActivePlayer.folded || currentActivePlayer.allIn || currentActivePlayer.eliminated || currentActivePlayer.name === playerName) {
             return prevGame;
           }
           
@@ -802,7 +814,7 @@ export default function SustainableIQPoker() {
       
       return () => clearTimeout(timer);
     }
-  }, [game?.activePlayerIndex, game?.phase, game?.bettingComplete, game?.winner, currentPlayer]);
+  }, [game?.activePlayerIndex, game?.phase, game?.bettingComplete, game?.winner, playerName]);
 
   const advancePhase = () => {
     if (!game) return;
@@ -973,11 +985,11 @@ export default function SustainableIQPoker() {
     </div>
   );
 
-  const PlayerCard = ({ player, index, game, currentPlayer, showCards }: { 
+  const PlayerCard = ({ player, index, game, playerName, showCards }: { 
     player: Player; 
     index: number; 
     game: GameState; 
-    currentPlayer: string;
+    playerName: string;
     showCards: boolean;
   }) => (
     <div
@@ -988,7 +1000,7 @@ export default function SustainableIQPoker() {
           ? 'bg-gray-200 border-gray-400'
           : game.activePlayerIndex === index
           ? 'bg-yellow-100 border-yellow-500'
-          : player.name === currentPlayer
+          : player.name === playerName
           ? 'bg-blue-100 border-blue-500'
           : 'bg-white border-gray-300'
       }`}
@@ -1033,7 +1045,7 @@ export default function SustainableIQPoker() {
             <div key={cardIndex} className="transform scale-75">
               <CardComponent
                 card={card}
-                hidden={player.name !== currentPlayer && !showCards}
+                hidden={player.name !== playerName && !showCards}
               />
             </div>
           ))}
@@ -1042,8 +1054,63 @@ export default function SustainableIQPoker() {
     </div>
   );
 
-  // Player Selection Screen
-  if (!currentPlayer) {
+  // Player Name Entry Screen
+  if (!nameConfirmed) {
+    return (
+      <div className="min-h-screen p-8" style={{
+        background: `
+          radial-gradient(circle at 1px 1px, rgba(255,255,255,0.08) 1px, transparent 0),
+          radial-gradient(ellipse at center, #2d5016 0%, #1f3710 60%, #0f1f08 100%)
+        `,
+        backgroundSize: '25px 25px, 100% 100%'
+      }}>
+        <div className="max-w-md mx-auto mt-20">
+          <div className="bg-white rounded-xl shadow-2xl p-8">
+            <div className="text-center mb-6">
+              <h1 className="text-3xl font-bold text-black mb-2">♠ Poker Tournament ♣</h1>
+              <p className="text-gray-600">Enter your player name to join the table</p>
+            </div>
+            
+            <div className="space-y-4">
+              <input
+                type="text"
+                placeholder="Enter your name..."
+                value={playerName}
+                onChange={(e) => setPlayerName(e.target.value)}
+                className="w-full p-3 border-2 border-gray-300 rounded-lg focus:border-green-500 focus:outline-none text-black bg-white text-lg"
+                style={{ color: '#000000', backgroundColor: '#ffffff' }}
+                maxLength={20}
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter' && playerName.trim().length >= 2) {
+                    setNameConfirmed(true);
+                  }
+                }}
+              />
+              
+              <button
+                onClick={() => setNameConfirmed(true)}
+                disabled={playerName.trim().length < 2}
+                className={`w-full py-3 rounded-lg font-semibold text-lg transition-colors ${
+                  playerName.trim().length >= 2
+                    ? 'bg-green-600 text-white hover:bg-green-700' 
+                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                }`}
+              >
+                Continue
+              </button>
+              
+              {playerName.trim().length > 0 && playerName.trim().length < 2 && (
+                <p className="text-red-500 text-sm text-center">Name must be at least 2 characters</p>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Welcome & Game Start Screen
+  if (!game) {
     return (
       <div className="min-h-screen p-8" style={{
         background: `
@@ -1054,43 +1121,47 @@ export default function SustainableIQPoker() {
       }}>
         <div className="max-w-4xl mx-auto space-y-6">
           
-          {/* Player Selection Box - NOW AT TOP */}
+          {/* Welcome Screen */}
           <div className="max-w-md mx-auto bg-white rounded-xl shadow-2xl p-8">
             <div className="text-center mb-6">
-              <h1 className="text-3xl font-bold text-black mb-2">♠ Vibe Coded Poker Tournament ♣</h1>
-              <p className="text-red-600 font-bold animate-pulse">Choose your identity for the table</p>
+              <h1 className="text-3xl font-bold text-black mb-2">♠ Welcome, {playerName}! ♣</h1>
+              <p className="text-green-600 font-bold">Ready to join the tournament?</p>
             </div>
             
             <div className="space-y-4">
-              <select 
-                className="w-full p-3 border-2 border-gray-300 rounded-lg focus:border-green-500 focus:outline-none text-black bg-white"
-                onChange={(e) => setCurrentPlayer(e.target.value)}
-                value={currentPlayer}
-                style={{ color: '#000000', backgroundColor: '#ffffff' }}
-              >
-                <option value="" style={{ color: '#666666' }}>-- Select your identity --</option>
-                {playerNames.map(name => (
-                  <option key={name} value={name} style={{ color: '#000000' }}>{name}</option>
-                ))}
-              </select>
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <h3 className="font-semibold text-black mb-2">Tournament Format:</h3>
+                <ul className="text-sm text-gray-700 space-y-1">
+                  <li>• 6 players total (you + 5 AI players)</li>
+                  <li>• Everyone starts with $1,000 chips</li>
+                  <li>• Blinds: $10/$20</li>
+                  <li>• Last player standing wins!</li>
+                </ul>
+              </div>
               
-              {currentPlayer && (
-                <div className="space-y-3">
-                  <button
-                    onClick={() => startNewGame('standard')}
-                    className="w-full bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 transition-colors font-semibold"
-                  >
-                    Start Tournament
-                  </button>
-                </div>
-              )}
+              <button
+                onClick={() => startNewGame('standard')}
+                className="w-full bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 transition-colors font-semibold text-lg"
+              >
+                Start Tournament
+              </button>
+              
+              <button
+                onClick={() => {
+                  setNameConfirmed(false);
+                  setPlayerName('');
+                }}
+                className="w-full bg-gray-500 text-white py-2 rounded-lg hover:bg-gray-600 transition-colors"
+              >
+                Change Name
+              </button>
             </div>
           </div>
 
-          {/* Welcome Text Box - Part 1 */}
+          {/* Info Boxes */}
           <div className="bg-white rounded-xl shadow-2xl p-8">
             <h2 className="text-2xl font-bold text-gray-800 mb-4 text-center">
-              ♠ Welcome to the first Vibe Coded Poker Tournament ♣
+              ♠ About This Vibe Coded Tournament ♣
             </h2>
             
             <div className="prose prose-sm max-w-none text-gray-700 space-y-4">
@@ -1118,12 +1189,7 @@ export default function SustainableIQPoker() {
                   <li><strong>Tournament Logic:</strong> Multi-hand progression, elimination tracking, dealer rotation</li>
                 </ul>
               </div>
-            </div>
-          </div>
 
-          {/* Welcome Text Box - Part 2 */}
-          <div className="bg-white rounded-xl shadow-2xl p-8">
-            <div className="prose prose-sm max-w-none text-gray-700 space-y-4">
               <div className="bg-blue-50 border-l-4 border-blue-400 p-4 rounded">
                 <h3 className="text-lg font-semibold text-blue-800 mb-2">But here's the real miracle:</h3>
                 <p className="text-blue-700 text-sm">
@@ -1135,13 +1201,37 @@ export default function SustainableIQPoker() {
               </div>
             </div>
           </div>
+
+          {/* How to Play Box */}
+          <div className="bg-white rounded-xl shadow-2xl p-8">
+            <h2 className="text-2xl font-bold text-gray-800 mb-4 text-center">
+              ♠ Tournament Poker Experience ♣
+            </h2>
+            
+            <div className="prose prose-sm max-w-none text-gray-700 space-y-4">
+              <p>
+                You'll be seated at a table with 5 AI opponents. Your position and the dealer button will rotate each hand, 
+                just like in real poker. Play smart, manage your bankroll, and outlast your opponents to claim victory!
+              </p>
+
+              <div className="bg-blue-50 border-l-4 border-blue-400 p-4 rounded">
+                <h3 className="text-lg font-semibold text-blue-800 mb-2">How to Play:</h3>
+                <ul className="text-blue-700 text-sm space-y-1">
+                  <li>• When it's your turn, choose to Fold, Call, Raise, or go All-In</li>
+                  <li>• Watch your chip count - when you hit $0, you're eliminated</li>
+                  <li>• The dealer button rotates clockwise each hand</li>
+                  <li>• Use the "Show/Hide Cards" button to peek at opponents' hands</li>
+                </ul>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     );
   }
 
-  const currentPlayerData = game?.players.find(p => p.name === currentPlayer);
-  const isMyTurn = currentPlayerData && game?.players[game.activePlayerIndex]?.name === currentPlayer && !currentPlayerData.eliminated;
+  const currentPlayerData = game?.players.find(p => p.name === playerName);
+  const isMyTurn = currentPlayerData && game?.players[game.activePlayerIndex]?.name === playerName && !currentPlayerData.eliminated;
 
   return (
     <div className="min-h-screen p-4" style={{
@@ -1229,17 +1319,17 @@ export default function SustainableIQPoker() {
                 {/* Top Row - Positions 3, 4, 5 */}
                 <div className="flex justify-center">
                   {game.players[3] && (
-                    <PlayerCard player={game.players[3]} index={3} game={game} currentPlayer={currentPlayer} showCards={showCards} />
+                    <PlayerCard player={game.players[3]} index={3} game={game} playerName={playerName} showCards={showCards} />
                   )}
                 </div>
                 <div className="flex justify-center">
                   {game.players[4] && (
-                    <PlayerCard player={game.players[4]} index={4} game={game} currentPlayer={currentPlayer} showCards={showCards} />
+                    <PlayerCard player={game.players[4]} index={4} game={game} playerName={playerName} showCards={showCards} />
                   )}
                 </div>
                 <div className="flex justify-center">
                   {game.players[5] && (
-                    <PlayerCard player={game.players[5]} index={5} game={game} currentPlayer={currentPlayer} showCards={showCards} />
+                    <PlayerCard player={game.players[5]} index={5} game={game} playerName={playerName} showCards={showCards} />
                   )}
                 </div>
 
@@ -1283,17 +1373,17 @@ export default function SustainableIQPoker() {
                 {/* Bottom Row - Positions 2, 1, 0 */}
                 <div className="flex justify-center">
                   {game.players[2] && (
-                    <PlayerCard player={game.players[2]} index={2} game={game} currentPlayer={currentPlayer} showCards={showCards} />
+                    <PlayerCard player={game.players[2]} index={2} game={game} playerName={playerName} showCards={showCards} />
                   )}
                 </div>
                 <div className="flex justify-center">
                   {game.players[1] && (
-                    <PlayerCard player={game.players[1]} index={1} game={game} currentPlayer={currentPlayer} showCards={showCards} />
+                    <PlayerCard player={game.players[1]} index={1} game={game} playerName={playerName} showCards={showCards} />
                   )}
                 </div>
                 <div className="flex justify-center">
                   {game.players[0] && (
-                    <PlayerCard player={game.players[0]} index={0} game={game} currentPlayer={currentPlayer} showCards={showCards} />
+                    <PlayerCard player={game.players[0]} index={0} game={game} playerName={playerName} showCards={showCards} />
                   )}
                 </div>
               </div>
@@ -1315,7 +1405,7 @@ export default function SustainableIQPoker() {
             {game.phase !== 'showdown' && !game.bettingComplete && isMyTurn && !currentPlayerData?.eliminated && (
               <div className="bg-white rounded-xl p-6 mb-6 shadow-lg text-black">
                 <h2 className="text-xl font-semibold mb-4 text-black">
-                  Your Turn - {currentPlayer}
+                  Your Turn - {playerName}
                   <span className="text-green-600"> (Make your decision)</span>
                 </h2>
                 <div className="mb-4 p-3 bg-gray-100 rounded text-black">
