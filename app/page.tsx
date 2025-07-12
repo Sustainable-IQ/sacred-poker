@@ -907,7 +907,7 @@ export default function SustainableIQPoker() {
           {/* Player Selection Box - NOW AT TOP */}
           <div className="max-w-md mx-auto bg-white rounded-xl shadow-2xl p-8">
             <div className="text-center mb-6">
-              <h1 className="text-3xl font-bold text-black mb-2">♠ SustainableIQ's Poker ♣</h1>
+              <h1 className="text-3xl font-bold text-black mb-2">♠ Vibe Coded Poker Table ♣</h1>
               <p className="text-red-600 font-bold animate-pulse">Choose your identity for the table</p>
             </div>
             
@@ -940,7 +940,7 @@ export default function SustainableIQPoker() {
           {/* Welcome Text Box - Part 1 */}
           <div className="bg-white rounded-xl shadow-2xl p-8">
             <h2 className="text-2xl font-bold text-gray-800 mb-4 text-center">
-              ♠ Welcome to SustainableIQ's Poker Table ♣
+              ♠ Welcome to the first Vibe Coded Poker Table ♣
             </h2>
             
             <div className="prose prose-sm max-w-none text-gray-700 space-y-4">
