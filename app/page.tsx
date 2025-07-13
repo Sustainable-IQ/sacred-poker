@@ -21,7 +21,7 @@ interface Player {
   position: number;
   connected: boolean;
   hasActed: boolean;
-  eliminated: boolean; // NEW: Track if player is eliminated from tournament
+  eliminated: boolean;
 }
 
 interface GameState {
@@ -214,7 +214,7 @@ function initializeGame(playerNames: string[], mode: string): GameState {
     position: index,
     connected: true,
     hasActed: false,
-    eliminated: false // NEW: Start with no one eliminated
+    eliminated: false
   }));
 
   const deck = createDeck();
@@ -234,12 +234,11 @@ function initializeGame(playerNames: string[], mode: string): GameState {
     deck,
     deckIndex: 0,
     bettingComplete: false,
-    handNumber: 1, // NEW: Start at hand 1
-    tournamentWinner: undefined // NEW: No tournament winner initially
+    handNumber: 1,
+    tournamentWinner: undefined
   };
 }
 
-// NEW: Function to check and eliminate players with 0 chips
 function checkForEliminations(game: GameState): GameState {
   const newGame = { ...game };
   let eliminationsThisHand = false;
@@ -255,13 +254,11 @@ function checkForEliminations(game: GameState): GameState {
   return newGame;
 }
 
-// NEW: Check if tournament is complete (only one player left)
 function checkTournamentComplete(game: GameState): boolean {
   const activePlayers = game.players.filter(p => !p.eliminated);
   return activePlayers.length === 1;
 }
 
-// NEW: Get next dealer position, skipping eliminated players
 function getNextDealerIndex(game: GameState): number {
   let nextDealer = (game.dealerIndex + 1) % game.players.length;
   let attempts = 0;
@@ -274,16 +271,12 @@ function getNextDealerIndex(game: GameState): number {
     attempts++;
   }
   
-  // Fallback - should not happen in normal play
   return game.dealerIndex;
 }
 
-// NEW: Start a new hand with existing chip counts
 function startNewHand(game: GameState): GameState {
-  // Check for eliminations first
   const gameWithEliminations = checkForEliminations(game);
   
-  // Check if tournament is complete
   if (checkTournamentComplete(gameWithEliminations)) {
     const tournamentWinner = gameWithEliminations.players.find(p => !p.eliminated);
     return {
@@ -294,7 +287,6 @@ function startNewHand(game: GameState): GameState {
     };
   }
   
-  // Move dealer button to next active player
   const newDealerIndex = getNextDealerIndex(gameWithEliminations);
   
   const newGame = {
@@ -315,30 +307,25 @@ function startNewHand(game: GameState): GameState {
 function dealCards(game: GameState): GameState {
   const newGame = { ...game };
   
-  // Reset all non-eliminated players for new hand
   newGame.players = newGame.players.map(player => ({
     ...player,
     hand: player.eliminated ? [] : [newGame.deck[newGame.deckIndex++], newGame.deck[newGame.deckIndex++]],
-    folded: player.eliminated, // Eliminated players are auto-folded
+    folded: player.eliminated,
     bet: 0,
     hasActed: false,
     allIn: false
   }));
 
-  // Post blinds - find next active players after dealer
   const activePlayers = newGame.players.map((p, i) => ({ player: p, index: i })).filter(({ player }) => !player.eliminated);
   
   if (activePlayers.length < 2) {
-    // Tournament should be over, but safety check
     return newGame;
   }
   
-  // Find small blind and big blind positions
   const dealerPosition = activePlayers.findIndex(({ index }) => index === newGame.dealerIndex);
   const smallBlindIndex = activePlayers[(dealerPosition + 1) % activePlayers.length].index;
   const bigBlindIndex = activePlayers[(dealerPosition + 2) % activePlayers.length].index;
   
-  // Post blinds
   const sbAmount = Math.min(newGame.smallBlind, newGame.players[smallBlindIndex].chips);
   const bbAmount = Math.min(newGame.bigBlind, newGame.players[bigBlindIndex].chips);
   
@@ -347,7 +334,6 @@ function dealCards(game: GameState): GameState {
   newGame.players[bigBlindIndex].chips -= bbAmount;
   newGame.players[bigBlindIndex].bet = bbAmount;
   
-  // Set all-in status if needed
   if (newGame.players[smallBlindIndex].chips === 0) {
     newGame.players[smallBlindIndex].allIn = true;
   }
@@ -355,7 +341,6 @@ function dealCards(game: GameState): GameState {
     newGame.players[bigBlindIndex].allIn = true;
   }
   
-  // Small blind still needs to act, big blind has acted initially
   newGame.players[smallBlindIndex].hasActed = false;
   newGame.players[bigBlindIndex].hasActed = true;
 
@@ -373,10 +358,8 @@ function dealCards(game: GameState): GameState {
 function isBettingComplete(game: GameState): boolean {
   const activePlayers = game.players.filter(p => !p.folded && !p.allIn && !p.eliminated);
   
-  // If only one active player, betting is complete
   if (activePlayers.length <= 1) return true;
   
-  // Standard check: all active players have acted and matched current bet
   const allActed = activePlayers.every(player => player.hasActed);
   const allMatchCurrentBet = activePlayers.every(player => 
     player.bet === game.currentBet || player.allIn
@@ -398,7 +381,6 @@ function getNextActivePlayer(game: GameState): number {
     attempts++;
   }
   
-  // If we get here, no valid next player - return current
   return game.activePlayerIndex;
 }
 
@@ -406,18 +388,17 @@ function getNextActivePlayer(game: GameState): number {
 export default function SustainableIQPoker() {
   const [socket] = useState(() => new MockWebSocket());
   const [game, setGame] = useState<GameState | null>(null);
-  const [playerName, setPlayerName] = useState<string>(''); // Store custom player name
-  const [nameConfirmed, setNameConfirmed] = useState<boolean>(false); // NEW: Track if name is confirmed
+  const [playerName, setPlayerName] = useState<string>('');
+  const [nameConfirmed, setNameConfirmed] = useState<boolean>(false);
   const [gameLog, setGameLog] = useState<string[]>([]);
   const [actionAmount, setActionAmount] = useState<number>(0);
   const [showCards, setShowCards] = useState<boolean>(false);
 
-  // Generate player names with user's custom name in random position
   const generatePlayerNames = (customName: string): string[] => {
     const genericNames = ['Player 1', 'Player 2', 'Player 3', 'Player 4', 'Player 5'];
-    const userPosition = Math.floor(Math.random() * 6); // Random position 0-5
+    const userPosition = Math.floor(Math.random() * 6);
     const allNames = [...genericNames];
-    allNames.splice(userPosition, 0, customName); // Insert user name at random position
+    allNames.splice(userPosition, 0, customName);
     return allNames;
   };
 
@@ -428,7 +409,7 @@ export default function SustainableIQPoker() {
   }, []);
 
   const startNewGame = (mode: string = 'standard') => {
-    if (!playerName.trim()) return; // Don't start without a player name
+    if (!playerName.trim()) return;
     
     const playerNames = generatePlayerNames(playerName);
     const newGame = initializeGame(playerNames, mode);
@@ -438,7 +419,6 @@ export default function SustainableIQPoker() {
     addToLog(`Players: ${playerNames.join(', ')}`);
     addToLog(`Dealer: ${gameWithCards.players[newGame.dealerIndex].name}`);
     
-    // Find and log blind positions
     const activePlayers = gameWithCards.players.map((p, i) => ({ player: p, index: i })).filter(({ player }) => !player.eliminated);
     const dealerPosition = activePlayers.findIndex(({ index }) => index === newGame.dealerIndex);
     const sbPlayer = activePlayers[(dealerPosition + 1) % activePlayers.length];
@@ -490,7 +470,6 @@ export default function SustainableIQPoker() {
           newGame.players[playerIndex].hasActed = true;
           newGame.currentBet = totalBet;
           
-          // Reset hasActed for other players when there's a raise
           newGame.players.forEach((p, i) => {
             if (i !== playerIndex && !p.folded && !p.allIn && !p.eliminated) {
               p.hasActed = false;
@@ -515,7 +494,6 @@ export default function SustainableIQPoker() {
         
         if (allInAmount > game.currentBet) {
           newGame.currentBet = allInAmount;
-          // Reset hasActed for other players
           newGame.players.forEach((p, i) => {
             if (i !== playerIndex && !p.folded && !p.allIn && !p.eliminated) {
               p.hasActed = false;
@@ -526,122 +504,144 @@ export default function SustainableIQPoker() {
         break;
     }
 
-    // Check if betting is complete
     newGame.bettingComplete = isBettingComplete(newGame);
     
     if (!newGame.bettingComplete) {
-      // Move to next active player
       newGame.activePlayerIndex = getNextActivePlayer(newGame);
     }
 
     setGame(newGame);
-    setActionAmount(newGame.currentBet + 10); // Reset raise amount
+    setActionAmount(newGame.currentBet + 10);
   };
 
-  // Improved AI Player Logic with Better Hand Evaluation
+  // ENHANCED AI DECISION FUNCTION WITH SUBTLE UNPREDICTABILITY
   const makeAIDecision = (player: Player, gameState: GameState): { action: string; amount?: number } => {
     const callAmount = gameState.currentBet - player.bet;
-    
-    // Calculate current pot size for decision making
     const currentPot = gameState.pot + gameState.players.reduce((sum, p) => sum + p.bet, 0);
-    
-    // Count how many raises have happened this round (estimate)
     const averageBet = currentPot / Math.max(1, gameState.players.filter(p => !p.folded && !p.eliminated).length);
     const estimatedRaises = Math.floor(averageBet / gameState.bigBlind);
     
-    // Evaluate hole cards with proper poker logic
     const [card1, card2] = player.hand;
     let handStrength = 0;
     
-    // Helper function to get card rank name for logging
-    const getCardName = (card: Card) => {
-      const rankNames: { [key: number]: string } = {
-        14: 'A', 13: 'K', 12: 'Q', 11: 'J', 10: 'T'
-      };
-      return rankNames[card.value] || card.value.toString();
-    };
-    
-    // PREMIUM HANDS (Always play aggressively)
+    // STANDARD HAND EVALUATION (unchanged)
     if (card1.value === card2.value) {
-      // Pocket pairs
-      if (card1.value >= 10) handStrength = 95; // TT+ (premium pairs)
-      else if (card1.value >= 7) handStrength = 80; // 77-99 (strong pairs)
-      else handStrength = 65; // 22-66 (small pairs)
+      if (card1.value >= 10) handStrength = 95;
+      else if (card1.value >= 7) handStrength = 80;
+      else handStrength = 65;
     }
-    // HIGH CARDS
     else if (card1.value >= 14 || card2.value >= 14) {
-      // Hands with Ace
       if ((card1.value >= 13 && card2.value >= 13)) {
-        handStrength = card1.suit === card2.suit ? 90 : 85; // AK, AQ (suited/offsuit)
+        handStrength = card1.suit === card2.suit ? 90 : 85;
       } else if ((card1.value >= 11 && card2.value >= 11)) {
-        handStrength = card1.suit === card2.suit ? 80 : 70; // AJ, AT (suited/offsuit)
+        handStrength = card1.suit === card2.suit ? 80 : 70;
       } else if ((card1.value >= 9 && card2.value >= 9)) {
-        handStrength = card1.suit === card2.suit ? 65 : 50; // A9, A8 (suited/offsuit)
+        handStrength = card1.suit === card2.suit ? 65 : 50;
       } else {
-        handStrength = card1.suit === card2.suit ? 45 : 30; // Weak ace
+        handStrength = card1.suit === card2.suit ? 45 : 30;
       }
     }
-    // KING HANDS
     else if (card1.value >= 13 || card2.value >= 13) {
       if ((card1.value >= 12 && card2.value >= 12)) {
-        handStrength = card1.suit === card2.suit ? 75 : 65; // KQ
+        handStrength = card1.suit === card2.suit ? 75 : 65;
       } else if ((card1.value >= 11 && card2.value >= 11)) {
-        handStrength = card1.suit === card2.suit ? 70 : 55; // KJ
+        handStrength = card1.suit === card2.suit ? 70 : 55;
       } else if ((card1.value >= 10 && card2.value >= 10)) {
-        handStrength = card1.suit === card2.suit ? 60 : 45; // KT
+        handStrength = card1.suit === card2.suit ? 60 : 45;
       } else {
-        handStrength = card1.suit === card2.suit ? 40 : 25; // Weak king
+        handStrength = card1.suit === card2.suit ? 40 : 25;
       }
     }
-    // QUEEN/JACK HANDS
     else if (card1.value >= 11 || card2.value >= 11) {
       if ((card1.value >= 11 && card2.value >= 11)) {
-        handStrength = card1.suit === card2.suit ? 65 : 50; // QJ
+        handStrength = card1.suit === card2.suit ? 65 : 50;
       } else if ((card1.value >= 10 && card2.value >= 10)) {
-        handStrength = card1.suit === card2.suit ? 55 : 40; // QT, JT
+        handStrength = card1.suit === card2.suit ? 55 : 40;
       } else {
-        handStrength = card1.suit === card2.suit ? 35 : 20; // Weak queen/jack
+        handStrength = card1.suit === card2.suit ? 35 : 20;
       }
     }
-    // SUITED CONNECTORS
     else if (card1.suit === card2.suit && Math.abs(card1.value - card2.value) <= 1) {
-      handStrength = Math.max(card1.value, card2.value) * 4; // 98s, 87s, etc.
+      handStrength = Math.max(card1.value, card2.value) * 4;
     }
-    // CONNECTORS
     else if (Math.abs(card1.value - card2.value) <= 1) {
-      handStrength = Math.max(card1.value, card2.value) * 2.5; // 98o, 87o, etc.
+      handStrength = Math.max(card1.value, card2.value) * 2.5;
     }
-    // TRASH HANDS
     else {
-      handStrength = Math.max(card1.value, card2.value); // High card only
+      handStrength = Math.max(card1.value, card2.value);
     }
 
-    // Post-flop: use actual hand evaluation
+    // Post-flop adjustment
     if (gameState.communityCards.length > 0) {
       const handEval = evaluateHand([...player.hand, ...gameState.communityCards]);
       handStrength = handEval.rank * 15 + (handEval.highCard / 14) * 10 + 50;
     }
 
-    // Decision matrix based on hand strength
+    // SUBTLE UNPREDICTABILITY ENHANCEMENTS
+    // Create unique seed for this player this hand to ensure consistency within hand
+    const playerSeed = (player.id.charCodeAt(player.id.length - 1) + gameState.handNumber) % 1000;
+    
+    // 1. MICRO-VARIANCE: Tiny random adjustments (±3%)
+    const microVariance = ((playerSeed % 7) - 3) / 100; // -3% to +3%
+    const adjustedHandStrength = handStrength * (1 + microVariance);
+    
+    // 2. OCCASIONAL QUIRKS: Very rare single-hand anomalies
+    const quirkChance = (playerSeed % 127) / 127; // 0 to 1, but deterministic per player/hand
+    
+    // 3. POSITION-BASED MICRO-ADJUSTMENTS
+    const activePlayers = gameState.players.filter(p => !p.eliminated);
+    const playerPosition = activePlayers.findIndex(p => p.id === player.id);
+    const latePosition = playerPosition >= activePlayers.length - 2;
+    
+    // Standard decision logic with subtle modifications
     const potOdds = callAmount > 0 ? callAmount / (currentPot + callAmount) : 0;
     const betSize = callAmount / Math.max(1, player.chips);
     
-    // ANTI-INFINITE LOOP LOGIC: Reduce aggression after many raises
     let aggressionFactor = 1.0;
     if (estimatedRaises >= 3) {
-      aggressionFactor = 0.3; // Much less likely to raise after 3+ raises
+      aggressionFactor = 0.3;
     } else if (estimatedRaises >= 2) {
-      aggressionFactor = 0.6; // Less likely to raise after 2+ raises
+      aggressionFactor = 0.6;
     }
     
-    // If bet is very large relative to stack, be more conservative
     if (betSize > 0.3) {
       aggressionFactor *= 0.5;
     }
     
-    // PREMIUM HANDS (85+): Almost always play
-    if (handStrength >= 85) {
-      if (Math.random() < (0.85 * aggressionFactor)) {
+    // SUBTLE ENHANCEMENTS START HERE
+    
+    // 4. RARE UNEXPECTED FOLD (0.7% chance with premium hands)
+    if (adjustedHandStrength >= 85 && quirkChance < 0.007 && callAmount > 0) {
+      return { action: 'fold' }; // Occasionally fold AA/KK to confuse
+    }
+    
+    // 5. TINY OVERBET WITH STRONG HANDS (1.2% chance)
+    if (adjustedHandStrength >= 80 && quirkChance > 0.988 && callAmount === 0) {
+      const overbet = Math.floor(currentPot * 1.4);
+      if (overbet <= player.chips + player.bet) {
+        return { action: 'raise', amount: gameState.currentBet + overbet };
+      }
+    }
+    
+    // 6. RARE WEAK HAND BLUFF (0.8% chance in late position)
+    if (latePosition && adjustedHandStrength < 25 && quirkChance < 0.008 && callAmount === 0) {
+      const bluffSize = Math.floor(currentPot * 0.6);
+      if (bluffSize <= player.chips + player.bet) {
+        return { action: 'raise', amount: gameState.currentBet + bluffSize };
+      }
+    }
+    
+    // 7. OCCASIONAL LIMP WITH STRONG HANDS (1.5% chance pre-flop)
+    if (gameState.phase === 'preflop' && adjustedHandStrength >= 85 && quirkChance > 0.985 && callAmount === gameState.bigBlind - player.bet) {
+      return { action: 'call' }; // Limp with AA/KK sometimes
+    }
+    
+    // STANDARD DECISION LOGIC (with micro-adjustments)
+    
+    // Premium hands
+    if (adjustedHandStrength >= 85) {
+      const raiseThreshold = 0.85 * aggressionFactor;
+      if (Math.random() < raiseThreshold) {
         const raiseAmount = Math.floor(Math.min(
           gameState.currentBet + Math.max(gameState.bigBlind * 2, currentPot * 0.3),
           player.chips + player.bet
@@ -651,8 +651,8 @@ export default function SustainableIQPoker() {
       return { action: 'call' };
     }
     
-    // STRONG HANDS (70-84): Usually play, but less aggressive with many raises
-    if (handStrength >= 70) {
+    // Strong hands
+    if (adjustedHandStrength >= 70) {
       if (betSize < 0.1 || Math.random() < (0.8 * aggressionFactor)) {
         if (Math.random() < (0.3 * aggressionFactor)) {
           const raiseAmount = Math.floor(Math.min(
@@ -665,21 +665,21 @@ export default function SustainableIQPoker() {
       }
     }
     
-    // DECENT HANDS (50-69): Play if cheap, no raising after multiple raises
-    if (handStrength >= 50) {
+    // Decent hands
+    if (adjustedHandStrength >= 50) {
       if (potOdds < 0.3 || betSize < 0.05) {
         return { action: 'call' };
       }
     }
     
-    // MARGINAL HANDS (30-49): Only if very cheap
-    if (handStrength >= 30) {
+    // Marginal hands
+    if (adjustedHandStrength >= 30) {
       if (potOdds < 0.15 || betSize < 0.02) {
         return { action: 'call' };
       }
     }
     
-    // Free play (no bet to call)
+    // Free play
     if (callAmount === 0) return { action: 'call' };
     
     return { action: 'fold' };
@@ -723,7 +723,6 @@ export default function SustainableIQPoker() {
           newGame.players[playerIndex].hasActed = true;
           newGame.currentBet = totalBet;
           
-          // Reset hasActed for other players
           newGame.players.forEach((p, i) => {
             if (i !== playerIndex && !p.folded && !p.allIn && !p.eliminated) {
               p.hasActed = false;
@@ -740,10 +739,8 @@ export default function SustainableIQPoker() {
         break;
     }
 
-    // Check if betting is complete
     newGame.bettingComplete = isBettingComplete(newGame);
     
-    // Check if only one player left (everyone else folded) - BUT ONLY if betting is complete
     if (newGame.bettingComplete) {
       const activePlayers = newGame.players.filter(p => !p.folded && !p.eliminated);
       if (activePlayers.length === 1) {
@@ -778,12 +775,10 @@ export default function SustainableIQPoker() {
     
     const activePlayer = game.players[game.activePlayerIndex];
     
-    // Early returns for non-actionable states
     if ((game as GameState).phase === 'showdown' || (game as GameState).phase === 'tournament_complete' || game.bettingComplete || game.winner) {
       return;
     }
     
-    // ✅ AUTO-ADVANCE if betting is complete and it's not showdown
     if (
       game.bettingComplete &&
       (game as GameState).phase !== 'showdown' &&
@@ -796,16 +791,13 @@ export default function SustainableIQPoker() {
     
     const isHumanPlayer = activePlayer.name === playerName;
     
-    // Only act if it's an AI player's turn AND they haven't acted yet
     if (!isHumanPlayer && !activePlayer.folded && !activePlayer.allIn && !activePlayer.eliminated && !activePlayer.hasActed) {
-      // AI player's turn - auto-play after short delay
       const timer = setTimeout(() => {
         setGame(prevGame => {
           if (!prevGame || (prevGame as GameState).phase === 'showdown' || (prevGame as GameState).phase === 'tournament_complete' || prevGame.bettingComplete || prevGame.winner) {
             return prevGame;
           }
           
-          // Double-check the current active player state
           const currentActivePlayer = prevGame.players[prevGame.activePlayerIndex];
           if (currentActivePlayer.hasActed || currentActivePlayer.folded || currentActivePlayer.allIn || currentActivePlayer.eliminated || currentActivePlayer.name === playerName) {
             return prevGame;
@@ -822,7 +814,6 @@ export default function SustainableIQPoker() {
   const advancePhase = () => {
     if (!game) return;
     
-    // Don't advance if betting isn't complete
     if (!game.bettingComplete && (game as GameState).phase !== 'showdown') {
       addToLog("Betting round must be completed first!");
       return;
@@ -830,7 +821,6 @@ export default function SustainableIQPoker() {
 
     const newGame = { ...game };
     
-    // Collect all bets into pot
     const totalBets = newGame.players.reduce((sum, player) => sum + player.bet, 0);
     newGame.pot += totalBets;
     newGame.players.forEach(player => {
@@ -842,7 +832,6 @@ export default function SustainableIQPoker() {
 
     switch ((game as GameState).phase) {
       case 'preflop':
-        // Deal flop (3 cards)
         newGame.communityCards = [
           newGame.deck[newGame.deckIndex++],
           newGame.deck[newGame.deckIndex++],
@@ -853,21 +842,18 @@ export default function SustainableIQPoker() {
         break;
         
       case 'flop':
-        // Deal turn (1 card)
         newGame.communityCards.push(newGame.deck[newGame.deckIndex++]);
         newGame.phase = 'turn';
         addToLog('Turn dealt');
         break;
         
       case 'turn':
-        // Deal river (1 card)
         newGame.communityCards.push(newGame.deck[newGame.deckIndex++]);
         newGame.phase = 'river';
         addToLog('River dealt');
         break;
         
       case 'river':
-        // Showdown
         newGame.phase = 'showdown';
         const activePlayers = newGame.players.filter(p => !p.folded && !p.eliminated);
         
@@ -876,21 +862,17 @@ export default function SustainableIQPoker() {
           newGame.winner.chips += newGame.pot;
           addToLog(`${newGame.winner.name} wins ${newGame.pot} (everyone else folded)`);
         } else {
-          // Evaluate hands properly
           const handEvaluations = activePlayers.map(player => ({
             player,
             hand: evaluateHand([...player.hand, ...newGame.communityCards])
           }));
           
-          // Sort by hand strength (best first)
           handEvaluations.sort((a, b) => compareHands(a.hand, b.hand));
           
           const winner = handEvaluations[0];
           const second = handEvaluations[1];
           
-          // Check for ties
           if (second && compareHands(winner.hand, second.hand) === 0) {
-            // Find all tied players
             const tiedPlayers = handEvaluations.filter(
               h => compareHands(h.hand, winner.hand) === 0
             ).map(h => h.player);
@@ -899,20 +881,17 @@ export default function SustainableIQPoker() {
             tiedPlayers.forEach(p => p.chips += splitAmount);
             
             newGame.pot = 0;
-            newGame.winner = undefined; // No single winner
+            newGame.winner = undefined;
             addToLog(`Split pot! ${tiedPlayers.map(p => p.name).join(' & ')} each win ${splitAmount} with ${winner.hand.name}`);
             
-            // Show all hands for transparency
             handEvaluations.forEach(({ player, hand }) => {
               addToLog(`${player.name}: ${hand.name} (${player.hand.map(c => c.rank + c.suit).join(', ')})`);
             });
           } else {
-            // Single winner
             newGame.winner = winner.player;
             newGame.winner.chips += newGame.pot;
             addToLog(`${winner.player.name} wins ${newGame.pot} with ${winner.hand.name}`);
             
-            // Show all hands for transparency
             handEvaluations.forEach(({ player, hand }) => {
               addToLog(`${player.name}: ${hand.name} (${player.hand.map(c => c.rank + c.suit).join(', ')})`);
             });
@@ -922,13 +901,11 @@ export default function SustainableIQPoker() {
         break;
     }
 
-    // Reset active player to left of dealer for new betting round
     if ((newGame as GameState).phase !== 'showdown') {
       const activePlayers = newGame.players.map((p, i) => ({ player: p, index: i })).filter(({ player }) => !player.eliminated);
       const dealerPosition = activePlayers.findIndex(({ index }) => index === newGame.dealerIndex);
       newGame.activePlayerIndex = activePlayers[(dealerPosition + 1) % activePlayers.length]?.index || activePlayers[0].index;
       
-      // Find first non-folded player
       while (newGame.players[newGame.activePlayerIndex].folded || newGame.players[newGame.activePlayerIndex].eliminated) {
         newGame.activePlayerIndex = getNextActivePlayer(newGame);
       }
@@ -937,7 +914,6 @@ export default function SustainableIQPoker() {
     setGame(newGame);
   };
 
-  // NEW: Function to start next hand
   const nextHand = () => {
     if (!game) return;
     
@@ -950,13 +926,11 @@ export default function SustainableIQPoker() {
       addToLog(`--- Hand #${newGame.handNumber} ---`);
       addToLog(`Dealer: ${newGame.players[newGame.dealerIndex].name}`);
       
-      // Log eliminations
       const newlyEliminated = newGame.players.filter(p => p.eliminated && p.chips === 0);
       newlyEliminated.forEach(p => {
         addToLog(`💀 ${p.name} has been eliminated from the tournament`);
       });
       
-      // Find and log blind positions
       const activePlayers = newGame.players.map((p, i) => ({ player: p, index: i })).filter(({ player }) => !player.eliminated);
       const dealerPosition = activePlayers.findIndex(({ index }) => index === newGame.dealerIndex);
       const sbPlayer = activePlayers[(dealerPosition + 1) % activePlayers.length];
@@ -998,7 +972,7 @@ export default function SustainableIQPoker() {
     <div
       className={`p-3 rounded-lg shadow-lg border-2 w-48 ${
         player.eliminated
-          ? 'bg-gray-300 border-gray-500 opacity-60' // NEW: Grey out eliminated players
+          ? 'bg-gray-300 border-gray-500 opacity-60'
           : player.folded
           ? 'bg-gray-200 border-gray-400'
           : game.activePlayerIndex === index
@@ -1041,7 +1015,6 @@ export default function SustainableIQPoker() {
         {!player.eliminated && <p>Action: {player.hasActed ? '✓' : '⏳'}</p>}
       </div>
 
-      {/* Player Hand */}
       <div className="mt-2">
         <div className="flex gap-1 justify-center">
           {player.hand.map((card, cardIndex) => (
@@ -1057,7 +1030,6 @@ export default function SustainableIQPoker() {
     </div>
   );
 
-  // Player Name Entry Screen
   if (!nameConfirmed) {
     return (
       <div className="min-h-screen p-8" style={{
@@ -1112,7 +1084,6 @@ export default function SustainableIQPoker() {
     );
   }
 
-  // Welcome & Game Start Screen
   if (!game) {
     return (
       <div className="min-h-screen p-8" style={{
@@ -1124,7 +1095,6 @@ export default function SustainableIQPoker() {
       }}>
         <div className="max-w-4xl mx-auto space-y-6">
           
-          {/* Welcome Screen */}
           <div className="max-w-md mx-auto bg-white rounded-xl shadow-2xl p-8">
             <div className="text-center mb-6">
               <h1 className="text-3xl font-bold text-black mb-2">♠ Welcome, {playerName}! ♣</h1>
@@ -1161,7 +1131,6 @@ export default function SustainableIQPoker() {
             </div>
           </div>
 
-          {/* Info Boxes */}
           <div className="bg-white rounded-xl shadow-2xl p-8">
             <h2 className="text-2xl font-bold text-gray-800 mb-4 text-center">
               ♠ About This Vibe Coded Tournament ♣
@@ -1205,7 +1174,6 @@ export default function SustainableIQPoker() {
             </div>
           </div>
 
-          {/* How to Play Box */}
           <div className="bg-white rounded-xl shadow-2xl p-8">
             <h2 className="text-2xl font-bold text-gray-800 mb-4 text-center">
               ♠ Tournament Poker Experience ♣
@@ -1213,7 +1181,7 @@ export default function SustainableIQPoker() {
             
             <div className="prose prose-sm max-w-none text-gray-700 space-y-4">
               <p>
-                You'll be seated at a table with 5 AI opponents. Your position and the dealer button will rotate each hand, 
+                This is the World's Most Honest Online Poker. The shuffleDeck function performs a Fisher-Yates shuffle, which is widely used and statistically fair — if the random number generator (RNG) is strong. You'll be seated at a table with 5 AI opponents. Your position and the dealer button will rotate each hand, 
                 just like in real poker. Play smart, manage your bankroll, and outlast your opponents to claim victory!
               </p>
 
@@ -1245,9 +1213,8 @@ export default function SustainableIQPoker() {
       backgroundSize: '25px 25px, 100% 100%'
     }}>
       <div className="max-w-7xl mx-auto">
-        {/* Header */}
         <div className="text-center mb-6">
-          <h1 className="text-4xl font-bold text-white mb-2">♠ SustainableIQ's Poker Tournament ♣</h1>
+          <h1 className="text-4xl font-bold text-white mb-2">♠ The World's Most Honest Online Poker Tournament ♣</h1>
           <div className="flex justify-center items-center gap-4 text-white">
             <div className="flex items-center gap-2">
               <Users className="w-5 h-5" />
@@ -1269,7 +1236,6 @@ export default function SustainableIQPoker() {
           </div>
         </div>
 
-        {/* Show game selection if no game */}
         {!game && (
           <div className="text-center mb-6">
             <div className="bg-white rounded-xl p-6 mb-6 shadow-lg">
@@ -1286,7 +1252,6 @@ export default function SustainableIQPoker() {
           </div>
         )}
 
-        {/* Tournament Complete Screen */}
         {game?.phase === 'tournament_complete' && (
           <div className="text-center mb-6">
             <div className="bg-white rounded-xl p-8 mb-6 shadow-lg border-4 border-yellow-400">
@@ -1311,15 +1276,11 @@ export default function SustainableIQPoker() {
           </div>
         )}
 
-        {/* Game Table - Only show if game exists and tournament not complete */}
         {game && game.phase !== 'tournament_complete' && (
           <>
-            {/* Poker Table Layout */}
             <div className="relative max-w-5xl mx-auto mb-6">
-              {/* Table Layout Grid */}
               <div className="grid grid-cols-3 grid-rows-3 gap-4 min-h-[600px]">
                 
-                {/* Top Row - Positions 3, 4, 5 */}
                 <div className="flex justify-center">
                   {game.players[3] && (
                     <PlayerCard player={game.players[3]} index={3} game={game} playerName={playerName} showCards={showCards} />
@@ -1336,10 +1297,8 @@ export default function SustainableIQPoker() {
                   )}
                 </div>
 
-                {/* Middle Row - Empty, Center Table, Empty */}
                 <div></div>
                 
-                {/* CENTER TABLE - Community Cards & Game Info */}
                 <div className="bg-green-700 rounded-xl p-6 text-center border-4 border-yellow-400 shadow-2xl">
                   <h2 className="text-xl font-semibold text-white mb-4">Community Cards</h2>
                   <div className="flex justify-center gap-2 mb-4">
@@ -1373,7 +1332,6 @@ export default function SustainableIQPoker() {
                 
                 <div></div>
 
-                {/* Bottom Row - Positions 2, 1, 0 */}
                 <div className="flex justify-center">
                   {game.players[2] && (
                     <PlayerCard player={game.players[2]} index={2} game={game} playerName={playerName} showCards={showCards} />
@@ -1392,7 +1350,6 @@ export default function SustainableIQPoker() {
               </div>
             </div>
 
-            {/* Player Eliminated Message */}
             {currentPlayerData?.eliminated && (
               <div className="bg-red-100 border-2 border-red-400 rounded-xl p-6 mb-6 shadow-lg text-center">
                 <h2 className="text-2xl font-bold text-red-800 mb-2">
@@ -1404,7 +1361,6 @@ export default function SustainableIQPoker() {
               </div>
             )}
 
-            {/* Player Actions - Only show when it's human player's turn and they're not eliminated */}
             {game.phase !== 'showdown' && !game.bettingComplete && isMyTurn && !currentPlayerData?.eliminated && (
               <div className="bg-white rounded-xl p-6 mb-6 shadow-lg text-black">
                 <h2 className="text-xl font-semibold mb-4 text-black">
@@ -1472,7 +1428,6 @@ export default function SustainableIQPoker() {
               </div>
             )}
 
-            {/* AI Player Thinking - Show when it's AI's turn and they haven't acted yet */}
             {game.phase !== 'showdown' && !game.bettingComplete && !isMyTurn && 
              !game.players[game.activePlayerIndex]?.folded && 
              !game.players[game.activePlayerIndex]?.allIn &&
@@ -1489,7 +1444,6 @@ export default function SustainableIQPoker() {
               </div>
             )}
 
-            {/* Betting Complete - Show continue button */}
             {(game.bettingComplete || game.phase === 'showdown') && (
               <div className="bg-white rounded-xl p-6 mb-6 shadow-lg text-center">
                 <h2 className="text-xl font-semibold mb-4 text-black">
@@ -1503,7 +1457,6 @@ export default function SustainableIQPoker() {
               </div>
             )}
 
-            {/* Game Controls */}
             <div className="flex justify-center gap-4 mb-6">
               {game.phase === 'showdown' ? (
                 <button
@@ -1546,7 +1499,6 @@ export default function SustainableIQPoker() {
               </button>
             </div>
 
-            {/* Game Log */}
             <div className="bg-black text-green-300 rounded-xl p-4 font-mono text-sm">
               <h3 className="text-white font-bold mb-3">Tournament Log</h3>
               <div className="h-40 overflow-y-auto space-y-1">
