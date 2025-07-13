@@ -1146,7 +1146,7 @@ export default function SustainableIQPoker() {
               </p>
 
               <p>
-                THIS GAME MIGHT STILL CONTAIN BUGS - IT IS A WORK IN PROGRESS
+                THIS GAME MIGHT STILL CONTAIN BUGS - IT IS A WORK IN PROGRESS. For more Info sustainableiq-at-gmail-dot-com
               </p>
 
               <div>
